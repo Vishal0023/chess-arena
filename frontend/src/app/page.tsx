@@ -38,8 +38,18 @@ interface GameRecord {
   status: string;
   result?: string | null;
   endReason?: string | null;
+  whiteTimeMs: number;
+  blackTimeMs: number;
+  lastMoveAt?: string | null;
   white: PlayerInfo | null;
   black: PlayerInfo | null;
+}
+
+function formatTime(ms: number): string {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -70,6 +80,8 @@ export default function ChessArenaPage() {
   const [game, setGame] = useState<GameRecord | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [promotionPending, setPromotionPending] = useState<{ from: Square; to: Square } | null>(null);
+  const [displayWhiteMs, setDisplayWhiteMs] = useState(300000);
+  const [displayBlackMs, setDisplayBlackMs] = useState(300000);
 
   // Restore session from localStorage
   useEffect(() => {
@@ -93,6 +105,8 @@ export default function ChessArenaPage() {
           const data = await res.json();
           if (data.game) {
             setGame(data.game);
+            setDisplayWhiteMs(data.game.whiteTimeMs);
+            setDisplayBlackMs(data.game.blackTimeMs);
             if (data.game.status === "active") {
               setIsSearching(false);
             }
@@ -104,6 +118,39 @@ export default function ChessArenaPage() {
     }, 800);
     return () => clearInterval(interval);
   }, [game?.id, game?.status]);
+
+  // Tick active player's clock & trigger timeout when it hits 0
+  useEffect(() => {
+    if (!game || game.status !== "active") return;
+    const interval = setInterval(() => {
+      if (turn === "w") {
+        setDisplayWhiteMs((prev) => {
+          const next = Math.max(0, prev - 100);
+          if (next === 0 && prev > 0) {
+            fetch(`/api/games/${game.id}/action`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "timeout", color: "w" }),
+            });
+          }
+          return next;
+        });
+      } else {
+        setDisplayBlackMs((prev) => {
+          const next = Math.max(0, prev - 100);
+          if (next === 0 && prev > 0) {
+            fetch(`/api/games/${game.id}/action`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "timeout", color: "b" }),
+            });
+          }
+          return next;
+        });
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [game?.id, game?.status, turn]);
 
   const chess = useMemo(() => {
     const c = new Chess();
@@ -578,7 +625,15 @@ export default function ChessArenaPage() {
                 <span className="font-semibold text-sm">
                   {myColor === "b" ? game.white?.username || "Waiting..." : game.black?.username || "Waiting..."}
                 </span>
-                <span className="text-xs text-neutral-400">{game.timeControl}</span>
+                <span
+                  className={`font-mono text-base font-bold px-3 py-1 rounded-lg ${
+                    turn === (myColor === "b" ? "w" : "b") && game.status === "active"
+                      ? "bg-arena-green text-white"
+                      : "bg-arena-bg text-neutral-300"
+                  }`}
+                >
+                  {formatTime(myColor === "b" ? displayWhiteMs : displayBlackMs)}
+                </span>
               </div>
 
               <div className="relative w-full max-w-[560px] aspect-square rounded-lg overflow-hidden shadow-2xl border-4 border-arena-panel select-none">
@@ -678,8 +733,14 @@ export default function ChessArenaPage() {
                 <span className="font-semibold text-sm">
                   {myColor === "b" ? game.black?.username : game.white?.username} (You)
                 </span>
-                <span className="text-xs font-semibold text-arena-green">
-                  {game.status === "active" ? (turn === myColor ? "Your Turn" : "Opponent's Turn") : game.status}
+                <span
+                  className={`font-mono text-base font-bold px-3 py-1 rounded-lg ${
+                    turn === (myColor || "w") && game.status === "active"
+                      ? "bg-arena-green text-white"
+                      : "bg-arena-bg text-neutral-300"
+                  }`}
+                >
+                  {formatTime(myColor === "b" ? displayBlackMs : displayWhiteMs)}
                 </span>
               </div>
             </div>

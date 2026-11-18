@@ -33,6 +33,9 @@ model Game {
   status      String   @default("waiting") // "waiting" | "active" | "completed"
   result      String?  // "1-0" | "0-1" | "1/2-1/2"
   endReason   String?  // "checkmate" | "resignation" | "timeout" | "draw" | "stalemate"
+  whiteTimeMs Int      @default(300000)
+  blackTimeMs Int      @default(300000)
+  lastMoveAt  DateTime?
   whiteId     String?
   blackId     String?
   white       User?    @relation("WhitePlayer", fields: [whiteId], references: [id])

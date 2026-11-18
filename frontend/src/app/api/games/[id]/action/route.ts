@@ -36,6 +36,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ game: updated });
     }
 
+    if (action === "timeout") {
+      const updated = await prisma.game.update({
+        where: { id: game.id },
+        data: {
+          status: "completed",
+          result: color === "w" ? "0-1" : "1-0",
+          endReason: "timeout",
+        },
+        include: { white: true, black: true },
+      });
+      return NextResponse.json({ game: updated });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     console.error("Action error:", err);
