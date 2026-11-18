@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?  @unique
+  isGuest      Boolean  @default(true)
+  avatarUrl    String?
+  rating       Int      @default(1200)
+  gamesPlayed  Int      @default(0)
+  gamesWon     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  whiteGames   Game[]   @relation("WhitePlayer")
+  blackGames   Game[]   @relation("BlackPlayer")
+}
+
+model Game {
+  id          String   @id @default(cuid())
+  roomCode    String?  @unique
+  mode        String   @default("random") // "random" | "private"
+  timeControl String   @default("5+0")
+  pgn         String   @default("")
+  fen         String   @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  status      String   @default("waiting") // "waiting" | "active" | "completed"
+  result      String?  // "1-0" | "0-1" | "1/2-1/2"
+  endReason   String?  // "checkmate" | "resignation" | "timeout" | "draw" | "stalemate"
+  whiteId     String?
+  blackId     String?
+  white       User?    @relation("WhitePlayer", fields: [whiteId], references: [id])
+  black       User?    @relation("BlackPlayer", fields: [blackId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
