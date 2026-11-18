@@ -119,6 +119,24 @@ export default function ChessArenaPage() {
     return () => clearInterval(interval);
   }, [game?.id, game?.status]);
 
+  const chess = useMemo(() => {
+    const c = new Chess();
+    if (game?.pgn) {
+      try {
+        c.loadPgn(game.pgn);
+      } catch {
+        if (game.fen) c.load(game.fen);
+      }
+    } else if (game?.fen) {
+      c.load(game.fen);
+    }
+    return c;
+  }, [game?.fen, game?.pgn]);
+
+  const history = useMemo(() => chess.history({ verbose: true }), [chess]);
+  const turn = chess.turn();
+  const inCheck = chess.inCheck();
+
   // Tick active player's clock & trigger timeout when it hits 0
   useEffect(() => {
     if (!game || game.status !== "active") return;
@@ -151,24 +169,6 @@ export default function ChessArenaPage() {
     }, 100);
     return () => clearInterval(interval);
   }, [game?.id, game?.status, turn]);
-
-  const chess = useMemo(() => {
-    const c = new Chess();
-    if (game?.pgn) {
-      try {
-        c.loadPgn(game.pgn);
-      } catch {
-        if (game.fen) c.load(game.fen);
-      }
-    } else if (game?.fen) {
-      c.load(game.fen);
-    }
-    return c;
-  }, [game?.fen, game?.pgn]);
-
-  const history = useMemo(() => chess.history({ verbose: true }), [chess]);
-  const turn = chess.turn();
-  const inCheck = chess.inCheck();
 
   const myColor: "w" | "b" | null = useMemo(() => {
     if (!game || !user) return null;
