@@ -83,17 +83,40 @@ export default function ChessArenaPage() {
   const [displayWhiteMs, setDisplayWhiteMs] = useState(300000);
   const [displayBlackMs, setDisplayBlackMs] = useState(300000);
 
-  // Restore session from localStorage
+  // Restore session & active game from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("chess_arena_user");
     if (saved) {
       try {
-        setUser(JSON.parse(saved));
+        const parsedUser = JSON.parse(saved);
+        setUser(parsedUser);
+        const savedGameId = localStorage.getItem("chess_arena_game_id");
+        if (savedGameId) {
+          fetch(`/api/games/${savedGameId}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (data?.game) {
+                setGame(data.game);
+                setDisplayWhiteMs(data.game.whiteTimeMs);
+                setDisplayBlackMs(data.game.blackTimeMs);
+              } else {
+                localStorage.removeItem("chess_arena_game_id");
+              }
+            })
+            .catch(() => {});
+        }
       } catch {
         localStorage.removeItem("chess_arena_user");
       }
     }
   }, []);
+
+  // Persist active game ID across refreshes
+  useEffect(() => {
+    if (game?.id) {
+      localStorage.setItem("chess_arena_game_id", game.id);
+    }
+  }, [game?.id]);
 
   // Poll game state every 800ms when waiting or active
   useEffect(() => {
@@ -230,6 +253,7 @@ export default function ChessArenaPage() {
 
   function handleLogout() {
     localStorage.removeItem("chess_arena_user");
+    localStorage.removeItem("chess_arena_game_id");
     setUser(null);
     setGame(null);
     setIsSearching(false);
@@ -719,7 +743,10 @@ export default function ChessArenaPage() {
                         {game.result} • {game.endReason}
                       </p>
                       <button
-                        onClick={() => setGame(null)}
+                        onClick={() => {
+                          localStorage.removeItem("chess_arena_game_id");
+                          setGame(null);
+                        }}
                         className="mt-4 w-full bg-arena-green hover:bg-arena-greenHover text-white font-bold py-2.5 rounded-xl transition"
                       >
                         Back to Lobby

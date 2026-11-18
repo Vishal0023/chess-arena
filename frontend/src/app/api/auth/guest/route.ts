@@ -10,13 +10,19 @@ export async function POST(req: Request) {
     const customName = typeof body?.username === "string" ? body.username.trim() : "";
     const username = customName || `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const user = await prisma.user.create({
-      data: {
-        username: `${username}_${Math.random().toString(36).slice(2, 5)}`,
-        isGuest: true,
-        rating: 1200,
-      },
-    });
+    let user = customName
+      ? await prisma.user.findUnique({ where: { username: customName } })
+      : null;
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          username,
+          isGuest: true,
+          rating: 1200,
+        },
+      });
+    }
 
     const token = jwt.sign({ id: user.id, username: user.username, isGuest: true }, JWT_SECRET, {
       expiresIn: "7d",
